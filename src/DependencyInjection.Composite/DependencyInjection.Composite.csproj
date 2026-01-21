@@ -15,7 +15,6 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
 	<PackageReleaseNotes>https://github.com/DevJasper/DependencyInjection.Composite/releases</PackageReleaseNotes>
-	<Version>0.0.1</Version>
 	<RootNamespace>Microsoft.Extensions.DependencyInjection</RootNamespace>
   </PropertyGroup>
   
