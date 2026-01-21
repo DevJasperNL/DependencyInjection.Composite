@@ -31,7 +31,6 @@ public class CompositeServiceScope : IServiceScope, IAsyncDisposable
         {
             scope.Dispose();
         }
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -48,6 +47,5 @@ public class CompositeServiceScope : IServiceScope, IAsyncDisposable
                 scope.Dispose();
             }
         }
-        GC.SuppressFinalize(this);
     }
 }
