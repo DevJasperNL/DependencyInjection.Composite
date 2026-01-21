@@ -1,5 +1,4 @@
-﻿using DependencyInjection.Composite.Extensions;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace DependencyInjection.Composite.Tests;
 

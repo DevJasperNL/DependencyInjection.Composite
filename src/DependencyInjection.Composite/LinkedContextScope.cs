@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace DependencyInjection.Composite;
+﻿namespace Microsoft.Extensions.DependencyInjection;
 
 internal sealed class LinkedContextScope(IServiceProvider composite, ServiceProvider context, IServiceScope parent)
     : IServiceScope, IAsyncDisposable

@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace DependencyInjection.Composite;
+﻿namespace Microsoft.Extensions.DependencyInjection;
 
 public class CompositeServiceProvider(params IServiceProvider[] providers) :
     IKeyedServiceProvider, IServiceScopeFactory, IServiceProviderIsService

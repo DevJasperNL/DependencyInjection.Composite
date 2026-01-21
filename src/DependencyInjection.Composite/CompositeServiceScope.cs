@@ -1,6 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
-
-namespace DependencyInjection.Composite;
+namespace Microsoft.Extensions.DependencyInjection;
 
 public class CompositeServiceScope : IServiceScope, IAsyncDisposable
 {
