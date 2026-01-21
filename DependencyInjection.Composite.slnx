@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="src/DependencyInjection.Composite/DependencyInjection.Composite.csproj" />
+  <Project Path="tests/DependencyInjection.Composite.Tests/DependencyInjection.Composite.Tests.csproj" Id="6ed46b86-2fa3-4bfa-b76f-520f427f00bb" />
 </Solution>
