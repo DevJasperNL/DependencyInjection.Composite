@@ -4,6 +4,21 @@ A lightweight, high-performance extension for `Microsoft.Extensions.DependencyIn
 
 Create nested DI scopes with overridden or additional service registrations that flow recursively through the dependency tree, without leaking into the root container or breaking modern .NET features.
 
+## Table of Contents
+
+- [Why DependencyInjection.Composite?](#why-dependencyinjectioncomposite)
+- [What This Enables](#what-this-enables)
+- [Key Features](#key-features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+    - [Example 1: Service Overriding](#example-1-service-overriding)
+    - [Example 2: Contextual Enrichment](#example-2-contextual-enrichment)
+- [Why Not Just Switch Containers?](#why-not-just-switch-containers)
+- [Common Gotchas](#️-common-gotchas)
+    - [The "Scope Disconnect" (Captive Dependencies)](#the-scope-disconnect-captive-dependencies)
+    - [Disposal of Contextual Services](#disposal-of-contextual-services)
+    - [IEnumerable<T> Ordering](#ienumerablet-ordering)
+
 ## Why DependencyInjection.Composite?
 
 The built-in Microsoft.Extensions.DependencyInjection container is intentionally immutable. Once a ServiceProvider is built, its registrations are fixed. While scopes exist, they cannot alter registrations for a specific unit of work.
@@ -42,14 +57,18 @@ dotnet add package DependencyInjection.Composite
 
 ## Quick Start
 
-Imagine you have a global ILight service, but for a specific pipeline run, you need to use a SpecialLight.
+`DependencyInjection.Composite` allows you to "branch" your service registrations at runtime. Because the library looks at the **Context Scope** before the **Parent Provider**, it handles both overriding existing services and injecting brand-new ones seamlessly.
+
+### Example 1: Service Overriding
+
+Use this when you need to swap a global implementation for a specific unit of work. Because .NET DI follows a "Last-In, First-Out" resolution, your context registration becomes the primary implementation.
+
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 
 // 1. Standard Setup
 var services = new ServiceCollection();
 services.AddScoped<ILight, DefaultLight>();
-services.AddScoped<Processor>();
 var rootProvider = services.BuildServiceProvider();
 
 // 2. Create a Contextual Scope with an override
@@ -59,12 +78,47 @@ using (var scope = rootProvider.CreateScope(context =>
     context.AddScoped<ILight, SpecialLight>();
 }))
 {
-    // The Processor resolved here will receive 'SpecialLight'
-    var processor = scope.ServiceProvider.GetRequiredService<Processor>();
-    processor.Run();
+    // The light here will be 'SpecialLight'
+    var specialLight = scope.ServiceProvider.GetRequiredService<ILight>();
+    specialLight.TurnOn();
 }
 
 // 3. Back outside, the rootProvider remains untouched
+// The light here will be 'DefaultLight'
+var defaultLight = rootProvider.GetRequiredService<ILight>();
+defaultLight.TurnOn();
+```
+
+### Example 2: Contextual Enrichment
+
+Use this to provide "State" or "Context" to a service tree without passing it through every constructor.
+
+```cs
+using Microsoft.Extensions.DependencyInjection;
+
+// 1. Global Setup
+var services = new ServiceCollection();
+services.AddScoped<ILogger, DefaultLogger>();
+var rootProvider = services.BuildServiceProvider();
+
+// 2. Start a specific job with its own context
+using (var scope = rootProvider.CreateScope(context =>
+{
+    // Contextual Enrichment: Add a service that doesn't exist globally
+    context.AddSingleton(new JobInfo { Id = 42, User = "Jasper" });
+    
+    // Service Overriding: Swap the global logger for a job-specific one
+    context.AddScoped<ILogger, JobInfoLogger>();
+
+    // Register a service
+    context.AddScoped<IReportGenerator, PDFGenerator>();
+}))
+{
+    // The generator now resolves with 'JobInfoLogger' and 'currentJob'
+    // via standard constructor injection.
+    var generator = scope.ServiceProvider.GetRequiredService<IReportGenerator>();
+    await generator.GenerateAsync();
+}
 ```
 
 ## Why Not Just Switch Containers?
@@ -76,3 +130,39 @@ using (var scope = rootProvider.CreateScope(context =>
 | Recursive scoping | ❌ Partial | ✅ Yes | ✅ **Yes** |
 | Ecosystem compatibility | ✅ Native | ⚠ Varies | ✅ **Native** |
 | Dependency weight | Built-in | Heavy | **Ultra-light** |
+
+## ⚠️ Common Gotchas
+
+### The "Scope Disconnect" (Captive Dependencies)
+One of the most important concepts to understand is that .NET DI engine caches "resolution recipes" for services registered in the root container. 
+
+If a service is registered globally (e.g. `Processor`), it will continue to use the **global** dependencies it was originally paired with. It will not automatically use your contextual overrides.
+
+**The Fix:**
+You must register the **consuming service** inside the `CreateScope` block. This forces the DI engine to build that service using the Composite Provider, allowing it to see your new registrations.
+
+```csharp
+using (var scope = rootProvider.CreateScope(context =>
+{
+    context.AddScoped<ILight, SpecialLight>(); // The Override
+    context.AddScoped<Processor>();            // The Consumer (Must be re-registered!)
+}))
+{
+    var processor = scope.ServiceProvider.GetRequiredService<Processor>();
+    processor.Run(); // Now uses SpecialLight
+}
+```
+
+### Disposal of Contextual Services
+Services registered with `context.AddScoped` or `context.AddTransient` inside the `CreateScope` block are automatically disposed of when the scope itself is disposed.
+
+However, if you pass a pre-existing object instance using `context.AddSingleton(myExistingObject)`, the DI container **will not** dispose of it. The container only manages the lifetime of objects it creates itself.
+
+### `IEnumerable<T>` Ordering
+When resolving a collection of services (e.g., `IEnumerable<ILogger>`), `DependencyInjection.Composite` prepends contextual services to the parent services. 
+
+The resulting order is:
+1.  **Contextual Services** (Registered inside the `CreateScope` lambda)
+2.  **Parent Services** (Registered in the root `ServiceCollection`)
+
+This allows you to "Insert" a priority validator or processor at the beginning of a pipeline for a specific operation.
