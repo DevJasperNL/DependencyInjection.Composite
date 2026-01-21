@@ -47,7 +47,7 @@ public class CompositeServiceProvider(params IServiceProvider[] providers) :
     }
 
     public bool IsService(Type serviceType) =>
-        _providers.Any(p => p.GetRequiredService<IServiceProviderIsService>().IsService(serviceType));
+        _providers.Any(p => p.GetService<IServiceProviderIsService>()?.IsService(serviceType) == true);
 
     public IServiceScope CreateScope()
     {

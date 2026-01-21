@@ -5,7 +5,16 @@ namespace DependencyInjection.Composite.Extensions
     public static class ServiceProviderExtensions
     {
         public static IServiceScope CreateScope(this IServiceProvider serviceProvider,
-            Action<IServiceCollection> contextBuilder, ServiceProviderOptions? options = null)
+            Action<IServiceCollection> contextBuilder)
+            => CreateScope(serviceProvider, contextBuilder, new ServiceProviderOptions());
+
+        public static IServiceScope CreateScope(this IServiceProvider serviceProvider,
+            Action<IServiceCollection> contextBuilder, bool validateScopes)
+            => CreateScope(serviceProvider, contextBuilder,
+                new ServiceProviderOptions { ValidateScopes = validateScopes });
+
+        public static IServiceScope CreateScope(this IServiceProvider serviceProvider,
+            Action<IServiceCollection> contextBuilder, ServiceProviderOptions options)
         {
             var parentScope = serviceProvider.CreateScope();
 
@@ -14,9 +23,7 @@ namespace DependencyInjection.Composite.Extensions
                 var contextServices = new ServiceCollection();
                 contextBuilder(contextServices);
 
-                var contextServiceProvider = options == null
-                    ? contextServices.BuildServiceProvider()
-                    : contextServices.BuildServiceProvider(options);
+                var contextServiceProvider = contextServices.BuildServiceProvider(options);
                 var compositeServiceProvider = new CompositeServiceProvider(
                     contextServiceProvider, // We want to prioritize context services. This also follows the pattern of a service provider providing the last registered service.
                     parentScope.ServiceProvider);
@@ -29,7 +36,5 @@ namespace DependencyInjection.Composite.Extensions
                 throw;
             }
         }
-
-
     }
 }

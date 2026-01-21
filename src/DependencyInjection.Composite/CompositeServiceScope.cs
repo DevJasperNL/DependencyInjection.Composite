@@ -21,6 +21,7 @@ public class CompositeServiceScope : IServiceScope, IAsyncDisposable
         {
             scope.Dispose();
         }
+        GC.SuppressFinalize(this);
     }
 
     public async ValueTask DisposeAsync()
@@ -36,5 +37,6 @@ public class CompositeServiceScope : IServiceScope, IAsyncDisposable
                 scope.Dispose();
             }
         }
+        GC.SuppressFinalize(this);
     }
 }
