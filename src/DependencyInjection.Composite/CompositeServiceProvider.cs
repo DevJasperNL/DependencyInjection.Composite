@@ -1,10 +1,19 @@
 ﻿namespace Microsoft.Extensions.DependencyInjection;
 
+/// <summary>
+/// A service provider that aggregates multiple service providers and resolves services from them in order.
+/// </summary>
+/// <remarks>
+/// <para>Services are resolved from the providers in the order they are supplied. The first provider that can resolve a service wins.</para>
+/// <para>For <see cref="IEnumerable{T}"/> requests, services are aggregated from all providers.</para>
+/// </remarks>
+/// <param name="providers">The service providers to aggregate, in priority order.</param>
 public class CompositeServiceProvider(params IServiceProvider[] providers) :
     IKeyedServiceProvider, IServiceScopeFactory, IServiceProviderIsService
 {
     private readonly IEnumerable<IServiceProvider> _providers = providers;
 
+    /// <inheritdoc />
     public object? GetService(Type serviceType)
     {
         if (serviceType.IsInstanceOfType(this))
@@ -44,9 +53,11 @@ public class CompositeServiceProvider(params IServiceProvider[] providers) :
         return null;
     }
 
+    /// <inheritdoc />
     public bool IsService(Type serviceType) =>
         _providers.Any(p => p.GetService<IServiceProviderIsService>()?.IsService(serviceType) == true);
 
+    /// <inheritdoc />
     public IServiceScope CreateScope()
     {
         return new CompositeServiceScope(_providers
@@ -54,6 +65,7 @@ public class CompositeServiceProvider(params IServiceProvider[] providers) :
             .ToArray());
     }
 
+    /// <inheritdoc />
     public object? GetKeyedService(Type serviceType, object? serviceKey)
     {
         foreach (var provider in _providers)
@@ -71,6 +83,7 @@ public class CompositeServiceProvider(params IServiceProvider[] providers) :
         return null;
     }
 
+    /// <inheritdoc />
     public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
         => GetKeyedService(serviceType, serviceKey) ??
            throw new InvalidOperationException($"Keyed service {serviceType} not found.");
