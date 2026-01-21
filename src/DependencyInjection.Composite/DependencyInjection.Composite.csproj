@@ -4,6 +4,33 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<PackageId>DependencyInjection.Composite</PackageId>
+    <Title>DependencyInjection.Composite</Title>
+    <Authors>Jasper Lammers</Authors>
+    <Company>DevJasper</Company>
+    <Description>A lightweight extension for Microsoft.Extensions.DependencyInjection that adds support for composite service providers and contextual scopes.</Description>
+    <RepositoryUrl>https://github.com/DevJasper/DependencyInjection.Composite</RepositoryUrl>
+    <PackageTags>dependency-injection;di;composite;scoped;context;extensions;aspnetcore</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+	<PackageReleaseNotes>https://github.com/DevJasper/DependencyInjection.Composite/releases</PackageReleaseNotes>
+	<RootNamespace>Microsoft.Extensions.DependencyInjection</RootNamespace>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+  </ItemGroup>
 
 </Project>
