@@ -4,7 +4,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// A service scope that aggregates multiple child scopes into a single composite scope.
 /// </summary>
 /// <remarks>
-/// Disposing this scope will dispose all child scopes.
+/// Disposing this scope will dispose all child scopes, even if one of them throws during disposal.
 /// </remarks>
 public class CompositeServiceScope : IServiceScope, IAsyncDisposable
 {
@@ -25,27 +25,8 @@ public class CompositeServiceScope : IServiceScope, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        foreach (var scope in _childScopes)
-        {
-            scope.Dispose();
-        }
-    }
+    public void Dispose() => DisposalHelper.DisposeAll(_childScopes);
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        foreach (var scope in _childScopes)
-        {
-            if (scope is IAsyncDisposable ad)
-            {
-                await ad.DisposeAsync();
-            }
-            else
-            {
-                scope.Dispose();
-            }
-        }
-    }
+    public ValueTask DisposeAsync() => DisposalHelper.DisposeAllAsync(_childScopes);
 }

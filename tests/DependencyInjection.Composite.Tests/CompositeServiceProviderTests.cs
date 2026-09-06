@@ -191,6 +191,18 @@ public sealed class CompositeServiceProviderTests
     }
 
     [TestMethod]
+    public void CreateScope_DisposesAlreadyCreatedScopes_WhenProviderFails()
+    {
+        var recording = new RecordingScopeProvider();
+        var composite = new CompositeServiceProvider(recording, new FailingScopeProvider());
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => composite.CreateScope());
+
+        Assert.HasCount(1, recording.Scopes);
+        Assert.IsTrue(recording.Scopes[0].IsDisposed);
+    }
+
+    [TestMethod]
     public void CreateScope_ReturnsCompositeServiceScope()
     {
         var services1 = new ServiceCollection();
@@ -292,6 +304,45 @@ public sealed class CompositeServiceScopeTests
 
         await ((IAsyncDisposable)scope).DisposeAsync();
 
+        Assert.IsTrue(service.IsDisposed);
+    }
+
+    [TestMethod]
+    public void Dispose_DisposesRemainingChildScopes_WhenOneThrows()
+    {
+        var services1 = new ServiceCollection();
+        services1.AddScoped<ThrowingDisposableService>();
+        var services2 = new ServiceCollection();
+        services2.AddScoped<DisposableService>();
+        var composite = new CompositeServiceProvider(
+            services1.BuildServiceProvider(),
+            services2.BuildServiceProvider());
+
+        var scope = composite.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ThrowingDisposableService>();
+        var service = scope.ServiceProvider.GetRequiredService<DisposableService>();
+
+        Assert.ThrowsExactly<InvalidOperationException>(scope.Dispose);
+        Assert.IsTrue(service.IsDisposed);
+    }
+
+    [TestMethod]
+    public async Task DisposeAsync_DisposesRemainingChildScopes_WhenOneThrows()
+    {
+        var services1 = new ServiceCollection();
+        services1.AddScoped<ThrowingAsyncDisposableService>();
+        var services2 = new ServiceCollection();
+        services2.AddScoped<AsyncDisposableService>();
+        var composite = new CompositeServiceProvider(
+            services1.BuildServiceProvider(),
+            services2.BuildServiceProvider());
+
+        var scope = composite.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ThrowingAsyncDisposableService>();
+        var service = scope.ServiceProvider.GetRequiredService<AsyncDisposableService>();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await ((IAsyncDisposable)scope).DisposeAsync());
         Assert.IsTrue(service.IsDisposed);
     }
 }

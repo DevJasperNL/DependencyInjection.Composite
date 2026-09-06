@@ -1,4 +1,4 @@
-﻿namespace Microsoft.Extensions.DependencyInjection;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// A service provider that aggregates multiple service providers and resolves services from them in order.
@@ -60,9 +60,28 @@ public class CompositeServiceProvider(params IServiceProvider[] providers) :
     /// <inheritdoc />
     public IServiceScope CreateScope()
     {
-        return new CompositeServiceScope(_providers
-            .Select(p => p.CreateScope())
-            .ToArray());
+        var scopes = new List<IServiceScope>();
+        try
+        {
+            foreach (var provider in _providers)
+            {
+                scopes.Add(provider.CreateScope());
+            }
+        }
+        catch
+        {
+            try
+            {
+                DisposalHelper.DisposeAll(scopes);
+            }
+            catch
+            {
+                // The original failure is the one worth surfacing.
+            }
+            throw;
+        }
+
+        return new CompositeServiceScope(scopes.ToArray());
     }
 
     /// <inheritdoc />
