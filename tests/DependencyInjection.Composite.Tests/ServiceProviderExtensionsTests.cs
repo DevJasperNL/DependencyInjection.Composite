@@ -150,6 +150,23 @@ public sealed class ServiceProviderExtensionsTests
     }
 
     [TestMethod]
+    public void CreateScope_WithValidateScopes_ResolvesContextScopedService()
+    {
+        var provider = new ServiceCollection().BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ITestService, TestServiceA>();
+        }, validateScopes: true);
+
+        var first = scope.ServiceProvider.GetRequiredService<ITestService>();
+        var second = scope.ServiceProvider.GetRequiredService<ITestService>();
+
+        Assert.IsInstanceOfType<TestServiceA>(first);
+        Assert.AreSame(first, second);
+    }
+
+    [TestMethod]
     public void CreateScope_Dispose_DisposesParentScopedService()
     {
         var services = new ServiceCollection();
@@ -204,6 +221,24 @@ public sealed class ServiceProviderExtensionsTests
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
             await ((IAsyncDisposable)scope).DisposeAsync());
         Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public void CreateScope_SubScope_ScopedContextServiceIsPerSubScope()
+    {
+        var provider = new ServiceCollection().BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ITestService, TestServiceA>();
+        }, validateScopes: true);
+
+        var outer = scope.ServiceProvider.GetRequiredService<ITestService>();
+        using var subScope = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        var inner = subScope.ServiceProvider.GetRequiredService<ITestService>();
+
+        Assert.IsInstanceOfType<TestServiceA>(inner);
+        Assert.AreNotSame(outer, inner);
     }
 
     [TestMethod]
