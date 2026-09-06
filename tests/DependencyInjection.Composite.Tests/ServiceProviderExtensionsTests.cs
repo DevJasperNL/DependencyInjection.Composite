@@ -150,6 +150,117 @@ public sealed class ServiceProviderExtensionsTests
     }
 
     [TestMethod]
+    public void CreateScope_WithValidateScopes_ResolvesContextScopedService()
+    {
+        var provider = new ServiceCollection().BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ITestService, TestServiceA>();
+        }, validateScopes: true);
+
+        var first = scope.ServiceProvider.GetRequiredService<ITestService>();
+        var second = scope.ServiceProvider.GetRequiredService<ITestService>();
+
+        Assert.IsInstanceOfType<TestServiceA>(first);
+        Assert.AreSame(first, second);
+    }
+
+    [TestMethod]
+    public void CreateScope_Dispose_DisposesParentScopedService()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddSingleton<IOtherService, OtherService>();
+        });
+
+        var parentService = scope.ServiceProvider.GetRequiredService<DisposableService>();
+        scope.Dispose();
+
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public void CreateScope_Dispose_DisposesParentScope_WhenContextServiceDisposeThrows()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ThrowingDisposableService>();
+        });
+
+        scope.ServiceProvider.GetRequiredService<ThrowingDisposableService>();
+        var parentService = scope.ServiceProvider.GetRequiredService<DisposableService>();
+
+        Assert.ThrowsExactly<InvalidOperationException>(scope.Dispose);
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public async Task CreateScope_DisposeAsync_DisposesParentScope_WhenContextServiceDisposeThrows()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<AsyncDisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ThrowingAsyncDisposableService>();
+        });
+
+        scope.ServiceProvider.GetRequiredService<ThrowingAsyncDisposableService>();
+        var parentService = scope.ServiceProvider.GetRequiredService<AsyncDisposableService>();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await ((IAsyncDisposable)scope).DisposeAsync());
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public void CreateScope_GetKeyedServices_AggregatesContextAndParent()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedSingleton<ITestService, TestServiceB>("key");
+        var provider = services.BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddKeyedScoped<ITestService, TestServiceA>("key");
+        });
+
+        var results = scope.ServiceProvider.GetKeyedServices<ITestService>("key").ToList();
+
+        Assert.HasCount(2, results);
+        Assert.IsInstanceOfType<TestServiceA>(results[0]);
+        Assert.IsInstanceOfType<TestServiceB>(results[1]);
+    }
+
+    [TestMethod]
+    public void CreateScope_SubScope_ScopedContextServiceIsPerSubScope()
+    {
+        var provider = new ServiceCollection().BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ITestService, TestServiceA>();
+        }, validateScopes: true);
+
+        var outer = scope.ServiceProvider.GetRequiredService<ITestService>();
+        using var subScope = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope();
+        var inner = subScope.ServiceProvider.GetRequiredService<ITestService>();
+
+        Assert.IsInstanceOfType<TestServiceA>(inner);
+        Assert.AreNotSame(outer, inner);
+    }
+
+    [TestMethod]
     public void CreateScope_CannotResolveServices_AfterDispose()
     {
         var services = new ServiceCollection();

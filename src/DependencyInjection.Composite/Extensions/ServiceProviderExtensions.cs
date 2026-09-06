@@ -44,21 +44,27 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<IServiceCollection> contextBuilder, ServiceProviderOptions options)
         {
             var parentScope = serviceProvider.CreateScope();
+            ServiceProvider? contextRoot = null;
+            IServiceScope? contextScope = null;
 
             try
             {
                 var contextServices = new ServiceCollection();
                 contextBuilder(contextServices);
 
-                var contextServiceProvider = contextServices.BuildServiceProvider(options);
+                contextRoot = contextServices.BuildServiceProvider(options);
+                // Scoped context services must come from a real scope, otherwise ValidateScopes rejects them.
+                contextScope = contextRoot.CreateScope();
                 var compositeServiceProvider = new CompositeServiceProvider(
-                    contextServiceProvider, // We want to prioritize context services. This also follows the pattern of a service provider providing the last registered service.
+                    contextScope.ServiceProvider, // We want to prioritize context services. This also follows the pattern of a service provider providing the last registered service.
                     parentScope.ServiceProvider);
 
-                return new LinkedContextScope(compositeServiceProvider, contextServiceProvider, parentScope);
+                return new LinkedContextScope(compositeServiceProvider, contextScope, contextRoot, parentScope);
             }
             catch
             {
+                contextScope?.Dispose();
+                contextRoot?.Dispose();
                 parentScope.Dispose();
                 throw;
             }
