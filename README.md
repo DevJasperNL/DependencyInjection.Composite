@@ -153,6 +153,8 @@ using (var scope = rootProvider.CreateScope(context =>
 }
 ```
 
+**The flip side:** services registered inside the `CreateScope` block are built by a separate container that only knows the context registrations. A re-registered consumer can therefore only take constructor dependencies that are *also* registered in the context (or forwarded explicitly, e.g. `context.AddSingleton(rootProvider.GetRequiredService<IDatabase>())`). Likewise, an `IServiceProvider` or `IServiceScopeFactory` injected into a context service is the context container, not the composite; resolve those from `scope.ServiceProvider` instead.
+
 ### Disposal of Contextual Services
 Services registered with `context.AddScoped` or `context.AddTransient` inside the `CreateScope` block are automatically disposed of when the scope itself is disposed.
 
