@@ -191,6 +191,61 @@ public sealed class CompositeServiceProviderTests
     }
 
     [TestMethod]
+    public void GetKeyedService_ReturnsKeyedServicesFromAllProviders_ForIEnumerable()
+    {
+        var services1 = new ServiceCollection();
+        services1.AddKeyedSingleton<ITestService, TestServiceA>("key");
+        var provider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddKeyedSingleton<ITestService, TestServiceB>("key");
+        var provider2 = services2.BuildServiceProvider();
+
+        var composite = new CompositeServiceProvider(provider1, provider2);
+
+        var results = composite.GetKeyedServices<ITestService>("key").ToList();
+
+        Assert.HasCount(2, results);
+        Assert.IsInstanceOfType<TestServiceA>(results[0]);
+        Assert.IsInstanceOfType<TestServiceB>(results[1]);
+    }
+
+    [TestMethod]
+    public void GetKeyedService_ReturnsParentKeyedServices_WhenFirstProviderHasNone_ForIEnumerable()
+    {
+        var provider1 = new ServiceCollection().BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddKeyedSingleton<ITestService, TestServiceB>("key");
+        var provider2 = services2.BuildServiceProvider();
+
+        var composite = new CompositeServiceProvider(provider1, provider2);
+
+        var results = composite.GetKeyedServices<ITestService>("key").ToList();
+
+        Assert.HasCount(1, results);
+        Assert.IsInstanceOfType<TestServiceB>(results[0]);
+    }
+
+    [TestMethod]
+    public void IsKeyedService_ReturnsTrueForKeyedServiceInAnyProvider()
+    {
+        var provider1 = new ServiceCollection().BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddKeyedSingleton<ITestService, TestServiceB>("key");
+        var provider2 = services2.BuildServiceProvider();
+
+        var composite = new CompositeServiceProvider(provider1, provider2);
+
+        var resolved = composite.GetRequiredService<IServiceProviderIsKeyedService>();
+
+        Assert.AreSame<object>(composite, resolved);
+        Assert.IsTrue(resolved.IsKeyedService(typeof(ITestService), "key"));
+        Assert.IsFalse(resolved.IsKeyedService(typeof(ITestService), "other"));
+    }
+
+    [TestMethod]
     public void CreateScope_DisposesAlreadyCreatedScopes_WhenProviderFails()
     {
         var recording = new RecordingScopeProvider();
