@@ -224,6 +224,25 @@ public sealed class ServiceProviderExtensionsTests
     }
 
     [TestMethod]
+    public void CreateScope_GetKeyedServices_AggregatesContextAndParent()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedSingleton<ITestService, TestServiceB>("key");
+        var provider = services.BuildServiceProvider();
+
+        using var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddKeyedScoped<ITestService, TestServiceA>("key");
+        });
+
+        var results = scope.ServiceProvider.GetKeyedServices<ITestService>("key").ToList();
+
+        Assert.HasCount(2, results);
+        Assert.IsInstanceOfType<TestServiceA>(results[0]);
+        Assert.IsInstanceOfType<TestServiceB>(results[1]);
+    }
+
+    [TestMethod]
     public void CreateScope_SubScope_ScopedContextServiceIsPerSubScope()
     {
         var provider = new ServiceCollection().BuildServiceProvider();
