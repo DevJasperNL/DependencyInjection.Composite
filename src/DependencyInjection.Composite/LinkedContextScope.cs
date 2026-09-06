@@ -1,26 +1,14 @@
-﻿namespace Microsoft.Extensions.DependencyInjection;
+namespace Microsoft.Extensions.DependencyInjection;
 
 internal sealed class LinkedContextScope(IServiceProvider composite, ServiceProvider context, IServiceScope parent)
     : IServiceScope, IAsyncDisposable
 {
     public IServiceProvider ServiceProvider { get; } = composite;
 
-    public void Dispose()
-    {
-        context.Dispose();
-        parent.Dispose();
-    }
+    // Context services may depend on parent services, so the context is torn down before the parent.
+    private IDisposable[] Disposables => [context, parent];
 
-    public async ValueTask DisposeAsync()
-    {
-        await context.DisposeAsync();
-        if (parent is IAsyncDisposable ad)
-        {
-            await ad.DisposeAsync();
-        }
-        else
-        {
-            parent.Dispose();
-        }
-    }
+    public void Dispose() => DisposalHelper.DisposeAll(Disposables);
+
+    public ValueTask DisposeAsync() => DisposalHelper.DisposeAllAsync(Disposables);
 }

@@ -150,6 +150,63 @@ public sealed class ServiceProviderExtensionsTests
     }
 
     [TestMethod]
+    public void CreateScope_Dispose_DisposesParentScopedService()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddSingleton<IOtherService, OtherService>();
+        });
+
+        var parentService = scope.ServiceProvider.GetRequiredService<DisposableService>();
+        scope.Dispose();
+
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public void CreateScope_Dispose_DisposesParentScope_WhenContextServiceDisposeThrows()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<DisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ThrowingDisposableService>();
+        });
+
+        scope.ServiceProvider.GetRequiredService<ThrowingDisposableService>();
+        var parentService = scope.ServiceProvider.GetRequiredService<DisposableService>();
+
+        Assert.ThrowsExactly<InvalidOperationException>(scope.Dispose);
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
+    public async Task CreateScope_DisposeAsync_DisposesParentScope_WhenContextServiceDisposeThrows()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<AsyncDisposableService>();
+        var provider = services.BuildServiceProvider();
+
+        var scope = provider.CreateScope(ctx =>
+        {
+            ctx.AddScoped<ThrowingAsyncDisposableService>();
+        });
+
+        scope.ServiceProvider.GetRequiredService<ThrowingAsyncDisposableService>();
+        var parentService = scope.ServiceProvider.GetRequiredService<AsyncDisposableService>();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await ((IAsyncDisposable)scope).DisposeAsync());
+        Assert.IsTrue(parentService.IsDisposed);
+    }
+
+    [TestMethod]
     public void CreateScope_CannotResolveServices_AfterDispose()
     {
         var services = new ServiceCollection();
